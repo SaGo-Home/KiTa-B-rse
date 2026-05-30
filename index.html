@@ -653,8 +653,8 @@ tbody td { padding: var(--space-3) var(--space-4); font-size: var(--text-sm); ve
               <input type="text" class="form-input" id="nachname" placeholder="z.B. Müller" required autocomplete="family-name">
             </div>
             <div class="form-field">
-              <label class="form-label" for="kind">Kind <span>(optional)</span></label>
-              <input type="text" class="form-input" id="kind" placeholder="Vorname des Kindes" autocomplete="off">
+              <label class="form-label" for="kind">Kind *</label>
+              <input type="text" class="form-input" id="kind" placeholder="Vorname des Kindes" required autocomplete="off">
             </div>
             <div class="form-field">
               <label class="form-label" for="email">E-Mail <span>(optional)</span></label>
@@ -662,7 +662,7 @@ tbody td { padding: var(--space-3) var(--space-4); font-size: var(--text-sm); ve
             </div>
             <div class="form-field" style="grid-column: 1/-1">
               <label class="form-label" for="telefon">Telefon *</label>
-              <input type="tel" class="form-input" id="telefon" placeholder="z.B. 0151 23456789" required autocomplete="tel">
+              <input type="tel" class="form-input" id="telefon" placeholder="z.B. +49 151 12345678" required autocomplete="tel">
             </div>
           </div>
 
@@ -1052,8 +1052,13 @@ document.addEventListener('DOMContentLoaded', function() {
   // Validierung
   if (!group)                               { showErr('Bitte wähle eine Gruppe aus.'); return; }
   if (!vorname || !nachname)                { showErr('Bitte gib Vor- und Nachnamen ein.'); return; }
-  if (email && !email.includes('@'))              { showErr('Bitte gib eine gültige E-Mail-Adresse ein.'); return; }
-  if (!telefon)                                   { showErr('Bitte gib eine Telefonnummer ein.'); return; }
+  if (!kind)                                { showErr('Bitte gib den Vornamen des Kindes an.'); return; }
+  if (email && !email.includes('@'))        { showErr('Bitte gib eine gültige E-Mail-Adresse ein.'); return; }
+  if (!telefon)                             { showErr('Bitte gib eine Telefonnummer ein.'); return; }
+  // Ländervorwahl erforderlich: +49..., 0049..., oder mind. +X gefolgt von Ziffern
+  const telefonClean = telefon.replace(/[\s\-().]/g, '');
+  const hasPrefix    = /^(\+|00)\d{1,3}\d{6,14}$/.test(telefonClean);
+  if (!hasPrefix)                           { showErr('Bitte gib die Telefonnummer mit Ländervorwahl an (z.B. +49 151 12345678 oder 0049 151 12345678).'); return; }
   if (!selectedVisibility)                  { showErr('Bitte wähle aus, ob deine Daten veröffentlicht werden sollen.'); return; }
   if (!consent)                             { showErr('Bitte bestätige die Einwilligung.'); return; }
 
@@ -1070,9 +1075,8 @@ document.addEventListener('DOMContentLoaded', function() {
   } catch (err) {
     console.warn('[Sheets]', err.message);
     // Nicht abbrechen — lokal trotzdem speichern
+    registrations.push(entry);
   }
-
-  registrations.push(entry);
 
   // Erfolgsmeldung
   document.getElementById('form-container').style.display = 'none';
@@ -1080,7 +1084,7 @@ document.addEventListener('DOMContentLoaded', function() {
     ? '🌈 Deine Daten wurden gespeichert und sind jetzt in der Kontaktliste sichtbar!'
     : '🔒 Deine Teilnahme wurde gespeichert. Deine Daten sind nicht öffentlich sichtbar.';
   document.getElementById('success-container').style.display = 'block';
-  renderKontakte();
+  await loadPublicList(true);
 
   function showErr(msg) { errEl.textContent = msg; errEl.style.display = 'block'; }
 });
