@@ -1,0 +1,152 @@
+/**
+ * Google Apps Script Backend für die Kontaktbörse
+ *
+ * Sheet-Struktur:
+ *   Tab "Alle_Eintraege"  → komplette Rohdaten (alle Einträge)
+ *   Tab "Kontaktliste"    → nur veröffentlichte Einträge (auto-rebuild)
+ *
+ * Deployment:
+ *   Deploy → New deployment → Web app
+ *   Execute as: Me
+ *   Who has access: Anyone
+ */
+
+const SHEET_ALL    = 'Alle_Eintraege';
+const SHEET_PUBLIC = 'Kontaktliste';
+
+const HEADERS_ALL = [
+  'timestamp', 'group', 'vorname', 'nachname',
+  'kind', 'email', 'telefon', 'visibility', 'published'
+];
+const HEADERS_PUBLIC = [
+  'group', 'vorname', 'nachname', 'kind', 'email', 'telefon'
+];
+
+// ─── GET: öffentliche Kontaktliste als JSON zurückgeben ───────────────────────
+function doGet(e) {
+  const action = (e && e.parameter && e.parameter.action) || 'public';
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let data = [];
+
+  if (action === 'public') {
+    const sh = ss.getSheetByName(SHEET_PUBLIC);
+    if (sh && sh.getLastRow() > 1) {
+      const rows = sh.getRange(2, 1, sh.getLastRow() - 1, HEADERS_PUBLIC.length).getValues();
+      data = rows.map((r, i) => ({
+        id: i + 1,
+        group:    String(r[0]),
+        vorname:  r[1],
+        nachname: r[2],
+        kind:     r[3],
+        email:    r[4],
+        telefon:  r[5]
+      })).filter(r => r.vorname);
+    }
+  } else if (action === 'all') {
+    const sh = ss.getSheetByName(SHEET_ALL);
+    if (sh && sh.getLastRow() > 1) {
+      const rows = sh.getRange(2, 1, sh.getLastRow() - 1, HEADERS_ALL.length).getValues();
+      data = rows.map((r, i) => ({
+        id: i + 1,
+        ts:         r[0],
+        group:      String(r[1]),
+        vorname:    r[2],
+        nachname:   r[3],
+        kind:       r[4],
+        email:      r[5],
+        telefon:    r[6],
+        visibility: r[7],
+        published:  r[8]
+      })).filter(r => r.vorname);
+    }
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ result: 'success', data }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ─── POST: neuen Eintrag speichern ───────────────────────────────────────────
+function doPost(e) {
+  const lock = LockService.getScriptLock();
+  lock.tryLock(10000);
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const allSheet    = getOrCreateSheet_(ss, SHEET_ALL,    HEADERS_ALL);
+    const publicSheet = getOrCreateSheet_(ss, SHEET_PUBLIC, HEADERS_PUBLIC);
+
+    const data = normalizePayload_(e);
+    validatePayload_(data);
+
+    allSheet.appendRow(HEADERS_ALL.map(h => data[h] || ''));
+    rebuildPublicSheet_(allSheet, publicSheet);
+
+    return jsonResponse_({ result: 'success' });
+  } catch (err) {
+    return jsonResponse_({ result: 'error', message: String(err) });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function jsonResponse_(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getOrCreateSheet_(ss, name, headers) {
+  let sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+  if (sh.getLastRow() === 0) sh.appendRow(headers);
+  return sh;
+}
+
+function normalizePayload_(e) {
+  const type = (e.postData && e.postData.type) || '';
+  let raw = {};
+  if (type.indexOf('application/json') > -1) {
+    raw = JSON.parse(e.postData.contents || '{}');
+  } else {
+    raw = e.parameter || {};
+  }
+  return {
+    timestamp:  raw.timestamp || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd.MM.yyyy, HH:mm'),
+    group:      String(raw.group      || '').trim(),
+    vorname:    String(raw.vorname    || '').trim(),
+    nachname:   String(raw.nachname   || '').trim(),
+    kind:       String(raw.kind       || '').trim(),
+    email:      String(raw.email      || '').trim(),
+    telefon:    String(raw.telefon    || '').trim(),
+    visibility: String(raw.visibility || '').trim(),
+    published:  ''
+  };
+}
+
+function validatePayload_(data) {
+  if (!['1','2','3','4'].includes(data.group))        throw new Error('Ungültige Gruppe');
+  if (!data.vorname)                                   throw new Error('Vorname fehlt');
+  if (!data.nachname)                                  throw new Error('Nachname fehlt');
+  if (data.email && data.email.indexOf('@') === -1)    throw new Error('E-Mail ungültig');
+  if (!data.telefon)                                   throw new Error('Telefon fehlt');
+  if (!['public','private'].includes(data.visibility)) throw new Error('Sichtbarkeit ungültig');
+  data.published = data.visibility === 'public' ? 'Ja' : 'Nein';
+}
+
+function rebuildPublicSheet_(allSheet, publicSheet) {
+  publicSheet.clearContents();
+  publicSheet.appendRow(HEADERS_PUBLIC);
+  const values = allSheet.getDataRange().getValues();
+  if (values.length < 2) return;
+  const headers = values[0];
+  const rows    = values.slice(1);
+  const idx     = Object.fromEntries(headers.map((h, i) => [h, i]));
+  const filtered = rows
+    .filter(r => String(r[idx.visibility]) === 'public')
+    .map(r => [r[idx.group], r[idx.vorname], r[idx.nachname],
+               r[idx.kind],  r[idx.email],   r[idx.telefon]]);
+  if (filtered.length) {
+    publicSheet.getRange(2, 1, filtered.length, HEADERS_PUBLIC.length).setValues(filtered);
+  }
+}
