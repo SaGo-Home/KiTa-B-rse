@@ -178,7 +178,8 @@ img{display:block;max-width:100%;}
 
 /* Kinder Liste */
 .kind-list{display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-3);}
-.kind-row{display:grid;grid-template-columns:160px 1fr 34px;gap:var(--space-2);align-items:end;}
+.kind-row{display:grid;grid-template-columns:1fr 1fr 34px;gap:var(--space-2);align-items:end;}
+@media(max-width:480px){.kind-row{grid-template-columns:1fr 34px;grid-template-rows:auto auto;}.kind-row>:first-child{grid-column:1 / -1;}}
 .btn-remove-kind{width:34px;height:42px;border-radius:var(--radius-md);background:var(--color-coral-light);color:var(--color-coral);border:2px solid var(--color-coral);display:flex;align-items:center;justify-content:center;font-size:18px;transition:all var(--transition);}
 .btn-remove-kind:hover{background:var(--color-coral);color:#fff;}
 .btn-add-kind{display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-4);border-radius:var(--radius-full);border:2px dashed var(--color-border);background:var(--color-surface-2);font-family:var(--font-display);font-size:var(--text-sm);font-weight:600;color:var(--color-text-muted);cursor:pointer;transition:all var(--transition);}
@@ -730,8 +731,8 @@ img{display:block;max-width:100%;}
 
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────
-const ADMIN_PW        = 'KiTa26';
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby85tUImKvNYabmlyLyvJkQzwO8OUAqKsEObWtgUb0ypQ8aie6HlDkeE6gh8oR9E9Wu/exec';
+const ADMIN_PW        = 'admin123';
+const APPS_SCRIPT_URL = 'PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEBAPP_URL_HERE';
 
 // ── STATE ─────────────────────────────────────────────────────────────────
 let adminUnlocked      = false;
