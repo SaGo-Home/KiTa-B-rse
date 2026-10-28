@@ -448,13 +448,10 @@ img{display:block;max-width:100%;}
     <div id="roll-form">
       <div class="form-section" style="margin-top:0">Was passiert</div>
       <div class="roll-map" id="roll-map"></div>
-      <div class="form-section">Letzte Gruppe</div>
-      <label class="roll-opt"><input type="radio" name="roll-last" value="delete"><span><strong>Einträge löschen</strong> (Kinder verlassen die KiTa)</span></label>
-      <label class="roll-opt"><input type="radio" name="roll-last" value="keep"><span><strong>Einträge behalten</strong> und in der letzten Gruppe belassen</span></label>
       <div class="form-section">Neue Gruppennamen und Emojis</div>
       <div id="roll-names"></div>
       <div class="roll-note">⚠️ Gruppennamen und Emojis werden nur in <strong>diesem Browser</strong> gespeichert. Andere Eltern sehen weiter die alten Namen, bis das geändert wird.</div>
-      <label class="roll-opt"><input type="checkbox" id="roll-confirm"><span>Ich weiß, dass das nicht rückgängig gemacht werden kann. Eine CSV-Sicherung wird vorher automatisch heruntergeladen.</span></label>
+      <label class="roll-opt"><input type="checkbox" id="roll-confirm"><span>Ich weiß, dass die Einträge der letzten Gruppe dauerhaft gelöscht werden und das nicht rückgängig zu machen ist. Eine CSV-Sicherung wird vorher automatisch heruntergeladen.</span></label>
     </div>
     <div id="roll-progress" style="display:none">
       <p id="roll-status" style="font-weight:600"></p>
@@ -1002,7 +999,7 @@ function renderKontakte() {
         <div class="avatar" data-g="${esc(r.group)}">${gc.emoji}</div>
         <div>
           <div class="card-name">👶 ${esc(r.kind) || '–'}</div>
-          <div class="card-child">Eltern: ${esc(r.vorname)} ${esc(r.nachname)}</div>
+          <div class="card-child">Kontakt: ${esc(r.vorname)} ${esc(r.nachname)}</div>
         </div>
       </div>
       <span class="group-tag gtag-${esc(r.group)}">${gc.emoji} ${gc.label}</span>
@@ -1010,6 +1007,7 @@ function renderKontakte() {
         ${r.email ? `<div class="card-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><a href="mailto:${esc(r.email)}">${esc(r.email)}</a></div>` : ''}
         ${r.telefon ? `<div class="card-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6 6l1.27-.85a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><a href="tel:${esc(r.telefon)}">${esc(r.telefon)}</a></div>` : ''}
       </div>
+      ${(r.telefon || r.email) ? `<button class="btn btn-secondary btn-sm no-print" style="margin-top:var(--space-3)" onclick="downloadVCard(${r.id})">📇 Kontakt speichern</button>` : ''}
     </div>`;
   }).join('');
   // Löschanfrage anzeigen wenn E-Mail konfiguriert
@@ -1021,6 +1019,35 @@ function renderKontakte() {
       dl.href = `mailto:${deleteEmail}?subject=Kontaktbörse – Änderung / Löschung&body=Hallo,%0A%0Aich möchte meinen Eintrag in der KiTa-Kontaktbörse:%0A%0A[ ] Löschen%0A[ ] Ändern (bitte Änderungen unten eintragen)%0A%0AName: %0AKind: %0A%0AÄnderungen:%0A%0AVielen Dank!`;
     }
   }
+}
+
+// ── KONTAKT ALS VCARD (Android / iOS) ─────────────────────────────────────
+function vEsc(v) {
+  return String(v||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
+}
+function downloadVCard(id) {
+  const r = registrations.find(x => x.id === id);
+  if (!r) return;
+  const full = (r.vorname + ' ' + r.nachname).trim();
+  const lines = [
+    'BEGIN:VCARD',
+    'VERSION:3.0',
+    'N:' + vEsc(r.nachname) + ';' + vEsc(r.vorname) + ';;;',
+    'FN:' + vEsc(full + (r.kind ? ' (Eltern von ' + r.kind + ')' : '')),
+    'ORG:KiTa'
+  ];
+  const tel = String(r.telefon||'').replace(/[^\d+]/g,'');
+  if (tel)     lines.push('TEL;TYPE=CELL:' + tel);
+  if (r.email) lines.push('EMAIL;TYPE=INTERNET:' + vEsc(r.email));
+  lines.push('NOTE:' + vEsc('Eltern von ' + (r.kind||'') + ' – ' + groupLabel(r.group)));
+  lines.push('END:VCARD');
+  const blob = new Blob([lines.join('\r\n') + '\r\n'], { type:'text/vcard;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (r.kind || full || 'kontakt').replace(/[^\wäöüÄÖÜß-]+/g,'_') + '.vcf';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
 }
 
 // ── SHEETS LADEN (öffentlich) ─────────────────────────────────────────────
@@ -1351,7 +1378,7 @@ function openRollover() {
     const n = counts[String(k)] || 0;
     return i < keys.length - 1
       ? `${esc(groupLabel(String(k)))} (${n}) → ${esc(groupLabel(String(keys[i+1])))}`
-      : `${esc(groupLabel(String(k)))} (${n}) → verlassen die KiTa`;
+      : `${esc(groupLabel(String(k)))} (${n}) → werden gelöscht`;
   }).join('<br>');
 
   document.getElementById('roll-names').innerHTML = keys.map(k => {
@@ -1364,7 +1391,6 @@ function openRollover() {
     </div>`;
   }).join('');
 
-  document.querySelectorAll('input[name="roll-last"]').forEach(r => r.checked = false);
   document.getElementById('roll-confirm').checked = false;
   document.getElementById('roll-form').style.display     = 'block';
   document.getElementById('roll-progress').style.display = 'none';
@@ -1380,8 +1406,7 @@ function openRollover() {
 async function startRollover() {
   if (rolloverRunning) return;
   rollErr('');
-  const mode = document.querySelector('input[name="roll-last"]:checked')?.value;
-  if (!mode) { rollErr('Bitte wähle, was mit der letzten Gruppe passieren soll.'); return; }
+  const mode = 'delete';   // Kinder der letzten Gruppe verlassen die KiTa: Einträge werden gelöscht
   const keys = groupKeysSorted();
   const names = {};
   for (const k of keys) {
