@@ -240,14 +240,14 @@ img{display:block;max-width:100%;}
 .badge-priv{background:var(--color-sky-light);color:var(--color-sky);padding:2px 8px;border-radius:var(--radius-full);font-size:11px;font-weight:700;}
 
 /* Monatsbalken */
-.month-chart{display:flex;gap:4px;align-items:flex-end;height:64px;margin-top:var(--space-4);}
-.month-col{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:28px;}
+.month-chart{display:flex;gap:2px;align-items:flex-end;height:64px;margin-top:var(--space-4);width:100%;}
+.month-col{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1 1 0;min-width:0;}
 .month-bar-wrap{width:100%;display:flex;align-items:flex-end;height:44px;}
 .month-bar{width:100%;border-radius:4px 4px 0 0;background:var(--color-primary);opacity:0.7;min-height:3px;transition:opacity var(--transition);}
 .month-bar:hover{opacity:1;}
-.month-label{font-size:9px;color:var(--color-text-muted);font-weight:600;}
+.month-label{font-size:9px;color:var(--color-text-muted);font-weight:600;max-width:100%;overflow:hidden;text-overflow:clip;white-space:nowrap;}
 .month-val{font-size:9px;font-weight:700;color:var(--color-text);}
-.chart-section{background:var(--color-surface);border:2px solid var(--color-divider);border-radius:var(--radius-xl);padding:var(--space-5);margin-bottom:var(--space-6);}
+.chart-section{overflow:hidden;background:var(--color-surface);border:2px solid var(--color-divider);border-radius:var(--radius-xl);padding:var(--space-5);margin-bottom:var(--space-6);}
 .chart-title{font-family:var(--font-display);font-size:var(--text-sm);font-weight:700;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.5px;}
 
 /* Gruppen-Einstellungen */
@@ -997,17 +997,17 @@ function renderKontakte() {
     return `<div class="contact-card">
       <div class="card-top">
         <div class="avatar" data-g="${esc(r.group)}">${gc.emoji}</div>
-        <div>
+        <div style="flex:1;min-width:0">
           <div class="card-name">👶 ${esc(r.kind) || '–'}</div>
           <div class="card-child">Kontakt: ${esc(r.vorname)} ${esc(r.nachname)}</div>
         </div>
+        ${(r.telefon || r.email) ? `<button class="btn btn-secondary btn-icon-only no-print" style="width:40px;height:40px;align-self:flex-start" onclick="downloadVCard(${r.id})" title="Kontakt speichern" aria-label="Kontakt speichern"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg></button>` : ''}
       </div>
       <span class="group-tag gtag-${esc(r.group)}">${gc.emoji} ${gc.label}</span>
       <div class="card-info">
         ${r.email ? `<div class="card-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><a href="mailto:${esc(r.email)}">${esc(r.email)}</a></div>` : ''}
         ${r.telefon ? `<div class="card-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6 6l1.27-.85a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><a href="tel:${esc(r.telefon)}">${esc(r.telefon)}</a></div>` : ''}
       </div>
-      ${(r.telefon || r.email) ? `<button class="btn btn-secondary btn-sm no-print" style="margin-top:var(--space-3)" onclick="downloadVCard(${r.id})">📇 Kontakt speichern</button>` : ''}
     </div>`;
   }).join('');
   // Löschanfrage anzeigen wenn E-Mail konfiguriert
