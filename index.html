@@ -132,6 +132,14 @@ img{display:block;max-width:100%;}
 .btn-icon-only{width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--radius-md);flex-shrink:0;}
 .btn:disabled{opacity:.6;cursor:not-allowed;pointer-events:none;transform:none;box-shadow:none;}
 
+/* Neues KiTa-Jahr */
+.roll-row{display:grid;grid-template-columns:auto 1fr;gap:var(--space-2);align-items:center;margin-bottom:var(--space-2);}
+.roll-row select{width:auto;}
+.roll-map{font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-4);line-height:1.8;}
+.roll-opt{display:flex;gap:var(--space-2);align-items:flex-start;font-size:var(--text-sm);margin-bottom:var(--space-2);cursor:pointer;}
+.roll-opt input{margin-top:5px;accent-color:var(--color-primary);}
+.roll-note{background:var(--color-sun-light);border:2px solid var(--color-sun);border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);font-size:var(--text-xs);margin-bottom:var(--space-4);}
+
 /* ── TOOLBAR / SUCHE ─────────────────────────────────────────────────────── */
 .toolbar{display:flex;flex-wrap:wrap;gap:var(--space-3);margin-bottom:var(--space-6);align-items:center;}
 .search-box{position:relative;flex:1;min-width:200px;}
@@ -430,6 +438,35 @@ img{display:block;max-width:100%;}
   </div>
 </div>
 
+<!-- ── NEUES KITA-JAHR MODAL ───────────────────────────────────────────────── -->
+<div class="modal-overlay" id="rollover-modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>📅 Neues KiTa-Jahr</h2>
+      <button class="modal-close" id="roll-x" onclick="closeRollover()">&times;</button>
+    </div>
+    <div id="roll-form">
+      <div class="form-section" style="margin-top:0">Was passiert</div>
+      <div class="roll-map" id="roll-map"></div>
+      <div class="form-section">Letzte Gruppe</div>
+      <label class="roll-opt"><input type="radio" name="roll-last" value="delete"><span><strong>Einträge löschen</strong> (Kinder verlassen die KiTa)</span></label>
+      <label class="roll-opt"><input type="radio" name="roll-last" value="keep"><span><strong>Einträge behalten</strong> und in der letzten Gruppe belassen</span></label>
+      <div class="form-section">Neue Gruppennamen und Emojis</div>
+      <div id="roll-names"></div>
+      <div class="roll-note">⚠️ Gruppennamen und Emojis werden nur in <strong>diesem Browser</strong> gespeichert. Andere Eltern sehen weiter die alten Namen, bis das geändert wird.</div>
+      <label class="roll-opt"><input type="checkbox" id="roll-confirm"><span>Ich weiß, dass das nicht rückgängig gemacht werden kann. Eine CSV-Sicherung wird vorher automatisch heruntergeladen.</span></label>
+    </div>
+    <div id="roll-progress" style="display:none">
+      <p id="roll-status" style="font-weight:600"></p>
+    </div>
+    <div id="roll-error" class="form-error"></div>
+    <div style="display:flex;gap:var(--space-3);margin-top:var(--space-6);justify-content:flex-end">
+      <button class="btn btn-ghost" id="roll-cancel" onclick="closeRollover()">Abbrechen</button>
+      <button class="btn btn-primary" id="roll-start" onclick="startRollover()">▶ Jetzt durchführen</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── EMOJI PICKER ─────────────────────────────────────────────────────────── -->
 <div class="emoji-picker" id="emoji-picker" onclick="if(event.target===this)closeEmojiPicker()">
   <div class="emoji-picker-box">
@@ -678,6 +715,13 @@ img{display:block;max-width:100%;}
         <div style="margin-top:var(--space-3)">
           <button class="btn btn-primary btn-sm" onclick="saveGroupSettings()">💾 Änderungen speichern</button>
         </div>
+      </div>
+
+      <!-- Neues KiTa-Jahr -->
+      <div class="group-settings">
+        <div style="font-family:var(--font-display);font-size:var(--text-base);font-weight:700;margin-bottom:var(--space-2);color:var(--color-text)">📅 Neues KiTa-Jahr</div>
+        <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-3)">Verschiebt alle Kinder in die nächste Gruppe und vergibt die Gruppennamen neu.</p>
+        <button class="btn btn-sun btn-sm" id="roll-open-btn" onclick="openRollover()">📅 Neues KiTa-Jahr starten</button>
       </div>
 
       <!-- Löschanfrage-E-Mail -->
@@ -1252,6 +1296,192 @@ function downloadQR() {
   a.href = c.toDataURL('image/png');
   a.click();
 }
+// ── NEUES KITA-JAHR ───────────────────────────────────────────────────────
+const ROLL_KEY = 'rolloverPlan';
+let rolloverRunning = false;
+
+function groupKeysSorted() { return Object.keys(groupConfig).map(Number).sort((a,b) => a-b); }
+
+async function fetchAllRegs() {
+  const res  = await fetch(APPS_SCRIPT_URL + '?action=all&_t=' + Date.now());
+  const json = await res.json();
+  if (json.result !== 'success') throw new Error(json.message || 'Fehler beim Laden');
+  return json.data.map(r => ({
+    id: Number(r.id), ts: r.ts || '', group: String(r.group),
+    vorname: r.vorname, nachname: r.nachname, kind: r.kind || '',
+    email: r.email || '', telefon: r.telefon || '',
+    visibility: r.visibility || 'private'
+  })).filter(r => r.vorname);
+}
+
+function rollErr(msg) {
+  const el = document.getElementById('roll-error');
+  el.textContent = msg; el.style.display = msg ? 'block' : 'none';
+}
+function setRollStatus(msg) { document.getElementById('roll-status').textContent = msg; }
+function showRollProgress() {
+  document.getElementById('roll-form').style.display     = 'none';
+  document.getElementById('roll-progress').style.display = 'block';
+  document.getElementById('roll-start').style.display    = 'none';
+  document.getElementById('rollover-modal').classList.add('open');
+}
+function closeRollover() {
+  if (rolloverRunning) return;
+  document.getElementById('rollover-modal').classList.remove('open');
+}
+
+function openRollover() {
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('PASTE_YOUR')) { showToast('Kein Backend konfiguriert', 'error'); return; }
+  if (rolloverRunning) return;
+
+  // Unterbrochener Durchlauf?
+  const old = JSON.parse(localStorage.getItem(ROLL_KEY) || 'null');
+  if (old) {
+    if (confirm(`Es gibt einen unterbrochenen Durchlauf (${old.done.length} von ${old.steps.length} Schritten erledigt). Jetzt fortsetzen?`)) {
+      showRollProgress(); rollErr(''); runRollover(old); return;
+    }
+    if (!confirm('Unterbrochenen Durchlauf verwerfen? Bereits verschobene Kinder bleiben in ihrer neuen Gruppe.')) return;
+    localStorage.removeItem(ROLL_KEY);
+  }
+
+  const keys = groupKeysSorted();
+  const counts = {};
+  registrations.forEach(r => { counts[r.group] = (counts[r.group] || 0) + 1; });
+  document.getElementById('roll-map').innerHTML = keys.map((k, i) => {
+    const n = counts[String(k)] || 0;
+    return i < keys.length - 1
+      ? `${esc(groupLabel(String(k)))} (${n}) → ${esc(groupLabel(String(keys[i+1])))}`
+      : `${esc(groupLabel(String(k)))} (${n}) → verlassen die KiTa`;
+  }).join('<br>');
+
+  document.getElementById('roll-names').innerHTML = keys.map(k => {
+    const c = groupConfig[k];
+    const list = EMOJI_LIST.includes(c.emoji) ? EMOJI_LIST : [c.emoji, ...EMOJI_LIST];
+    const opts = [...new Set(list)].map(e => `<option value="${e}" ${e===c.emoji?'selected':''}>${e}</option>`).join('');
+    return `<div class="roll-row">
+      <select class="form-input" id="roll-emoji-${k}">${opts}</select>
+      <input class="form-input" id="roll-name-${k}" value="${esc(c.label)}" placeholder="Name Gruppe ${k}">
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('input[name="roll-last"]').forEach(r => r.checked = false);
+  document.getElementById('roll-confirm').checked = false;
+  document.getElementById('roll-form').style.display     = 'block';
+  document.getElementById('roll-progress').style.display = 'none';
+  document.getElementById('roll-start').style.display    = '';
+  document.getElementById('roll-start').disabled = false;
+  document.getElementById('roll-cancel').disabled = false;
+  document.getElementById('roll-cancel').textContent = 'Abbrechen';
+  document.getElementById('roll-x').disabled = false;
+  rollErr('');
+  document.getElementById('rollover-modal').classList.add('open');
+}
+
+async function startRollover() {
+  if (rolloverRunning) return;
+  rollErr('');
+  const mode = document.querySelector('input[name="roll-last"]:checked')?.value;
+  if (!mode) { rollErr('Bitte wähle, was mit der letzten Gruppe passieren soll.'); return; }
+  const keys = groupKeysSorted();
+  const names = {};
+  for (const k of keys) {
+    const label = document.getElementById('roll-name-' + k).value.trim();
+    if (!label) { rollErr('Bitte alle Gruppennamen ausfüllen.'); return; }
+    names[k] = { label, emoji: document.getElementById('roll-emoji-' + k).value };
+  }
+  if (!document.getElementById('roll-confirm').checked) { rollErr('Bitte bestätige den Hinweis.'); return; }
+
+  rolloverRunning = true;
+  document.getElementById('roll-start').disabled = true;
+  showRollProgress();
+  try {
+    setRollStatus('Lade aktuelle Daten …');
+    const regs = await fetchAllRegs();
+    registrations = regs;
+    exportCSV();   // Sicherung vor jeder Änderung
+
+    const last  = keys[keys.length - 1];
+    const steps = [];
+    regs.forEach(r => {
+      const g = Number(r.group);
+      const i = keys.indexOf(g);
+      if (i < 0 || g === last) return;
+      steps.push({ op:'update', id:r.id, rec:{ ...r, group:String(keys[i+1]) } });
+    });
+    if (mode === 'delete') {
+      regs.filter(r => Number(r.group) === last).sort((a,b) => b.id - a.id)   // absteigend: Zeilen darüber verschieben sich nicht
+        .forEach(r => steps.push({ op:'delete', id:r.id, rec:r }));
+    }
+    const plan = { mode, names, steps, done:[] };
+    localStorage.setItem(ROLL_KEY, JSON.stringify(plan));
+    await runRollover(plan);
+  } catch(e) {
+    rollErr('Fehler: ' + e.message);
+    rolloverRunning = false;
+  }
+}
+
+async function runRollover(plan) {
+  rolloverRunning = true;
+  document.getElementById('roll-x').disabled = true;
+  document.getElementById('roll-cancel').disabled = true;
+  const post = body => fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' },
+    body: new URLSearchParams(body).toString()
+  }).then(r => r.json());
+
+  let current = null;   // frisch geladene Zeilen, zur Prüfung vor dem Löschen
+  try {
+    for (let i = 0; i < plan.steps.length; i++) {
+      if (plan.done.includes(i)) continue;
+      const s = plan.steps[i];
+      setRollStatus(`Schritt ${plan.done.length + 1} von ${plan.steps.length} …`);
+
+      if (s.op === 'delete') {
+        // Vor dem Löschen prüfen, dass unter dieser Zeilennummer noch derselbe Eintrag steht
+        // (nach abgebrochenem Durchlauf könnte die Zeile schon weg sein und sich alles verschoben haben).
+        if (!current) current = await fetchAllRegs();
+        const cur = current.find(r => r.id === s.id);
+        const same = cur && cur.vorname === s.rec.vorname && cur.nachname === s.rec.nachname && cur.kind === s.rec.kind;
+        if (!same) { plan.done.push(i); localStorage.setItem(ROLL_KEY, JSON.stringify(plan)); continue; }
+        const j = await post({ action:'delete', rowIndex:String(s.id) });
+        if (j.result !== 'success') throw new Error(j.message || 'Fehler');
+      } else {
+        const r = s.rec;
+        const j = await post({ action:'update', rowIndex:String(s.id), group:r.group, vorname:r.vorname,
+          nachname:r.nachname, kind:r.kind, email:r.email, telefon:r.telefon, visibility:r.visibility });
+        if (j.result !== 'success') throw new Error(j.message || 'Fehler');
+      }
+      plan.done.push(i);
+      localStorage.setItem(ROLL_KEY, JSON.stringify(plan));
+    }
+  } catch(e) {
+    rollErr(`Abgebrochen nach ${plan.done.length} von ${plan.steps.length} Schritten: ${e.message}. `
+      + 'Zum Fortsetzen erneut „Neues KiTa-Jahr starten“ klicken. Der Stand ist gespeichert.');
+    document.getElementById('roll-x').disabled = false;
+    document.getElementById('roll-cancel').disabled = false;
+    document.getElementById('roll-cancel').textContent = 'Schließen';
+    rolloverRunning = false;
+    return;
+  }
+
+  // Namen/Emojis übernehmen (nur lokal gespeichert!)
+  Object.entries(plan.names).forEach(([k, n]) => {
+    if (groupConfig[k]) { groupConfig[k].label = n.label; groupConfig[k].emoji = n.emoji; }
+  });
+  localStorage.setItem('groupConfig', JSON.stringify(groupConfig));
+  localStorage.removeItem(ROLL_KEY);
+  rolloverRunning = false;
+  document.getElementById('roll-x').disabled = false;
+  document.getElementById('roll-cancel').disabled = false;
+  document.getElementById('roll-cancel').textContent = 'Schließen';
+  setRollStatus('✅ Fertig. Alle Kinder sind verschoben.');
+  buildGroupSelects(); renderGroupSettings();
+  await loadAllForAdmin();
+  showToast('Neues KiTa-Jahr durchgeführt ✓');
+}
+
 // ── LÖSCH-E-MAIL ──────────────────────────────────────────────────────────
 function saveDeleteEmail() {
   const val = document.getElementById('delete-email-input')?.value.trim();
