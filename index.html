@@ -130,6 +130,7 @@ img{display:block;max-width:100%;}
 .btn-ghost:hover{color:var(--color-text);border-color:var(--color-text-muted);}
 .btn-sm{padding:4px 10px;font-size:var(--text-xs);}
 .btn-icon-only{width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--radius-md);flex-shrink:0;}
+.btn:disabled{opacity:.6;cursor:not-allowed;pointer-events:none;transform:none;box-shadow:none;}
 
 /* ── TOOLBAR / SUCHE ─────────────────────────────────────────────────────── */
 .toolbar{display:flex;flex-wrap:wrap;gap:var(--space-3);margin-bottom:var(--space-6);align-items:center;}
@@ -611,7 +612,7 @@ img{display:block;max-width:100%;}
       </div>
       <div id="form-error" class="form-error"></div>
       <div style="margin-top:var(--space-5)">
-        <button class="btn btn-primary btn-large" onclick="submitForm()">
+        <button class="btn btn-primary btn-large" id="submit-btn" onclick="submitForm()">
           🌱 Jetzt eintragen
         </button>
       </div>
@@ -742,6 +743,8 @@ let sheetsLoadError    = null;
 let selectedVisibility = null;
 let currentGroupFilter = 'all';
 let pendingEmojiGroup  = null;
+let isSubmitting       = false;       // Doppelklick-Schutz
+let savedKeys          = new Set();   // bereits gespeicherte Kinder dieses Formulars (Retry-Schutz)
 let deleteEmail        = localStorage.getItem('deleteEmail') || '';
 let callLog            = JSON.parse(localStorage.getItem('callLog') || '[]');
 
@@ -800,6 +803,12 @@ function showToast(msg, type='success') {
   t.textContent = msg;
   c.appendChild(t);
   setTimeout(() => t.remove(), 3500);
+}
+
+// Schlüssel zur Identifikation eines Eintrags (Eltern + Kind + Telefon)
+function entryKey(vorname, nachname, kindName, telefon) {
+  return [vorname, nachname, kindName, telefon]
+    .map(s => String(s||'').toLowerCase().replace(/\s+/g,' ').trim()).join('|');
 }
 
 // ── GRUPPEN DROPDOWN befüllen ─────────────────────────────────────────────
@@ -875,6 +884,13 @@ function showTab(id) {
 }
 
 function resetForm() {
+  // Läuft gerade ein Speichern, Formular nicht zurücksetzen (sonst gehen Eingaben/Schutz verloren)
+  if (isSubmitting) {
+    document.getElementById('form-container').style.display  = 'block';
+    document.getElementById('success-container').style.display = 'none';
+    return;
+  }
+  savedKeys.clear();
   document.getElementById('form-container').style.display  = 'block';
   document.getElementById('success-container').style.display = 'none';
   document.getElementById('form-error').style.display = 'none';
@@ -1092,9 +1108,11 @@ function renderMonthChart() {
       <div class="month-label">${m.label}</div>
     </div>`;
   }).join('');
-  // Gesamt unter Chart
+  // Gesamt unter Chart (alte Zeile entfernen, damit sie sich nicht stapelt)
   const el = document.getElementById('month-chart');
-  el.insertAdjacentHTML('afterend', `<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:var(--space-2);text-align:right">Gesamt letzte 12 Monate: <strong>${total}</strong></div>`);
+  const oldTotal = document.getElementById('month-total');
+  if (oldTotal) oldTotal.remove();
+  el.insertAdjacentHTML('afterend', `<div id="month-total" style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:var(--space-2);text-align:right">Gesamt letzte 12 Monate: <strong>${total}</strong></div>`);
 }
 
 // ── GRUPPEN EINSTELLUNGEN ─────────────────────────────────────────────────
@@ -1325,6 +1343,9 @@ function showErr(msg) {
 }
 
 async function submitForm() {
+  // Doppelklick-Schutz: ganz am Anfang, vor allem anderen
+  if (isSubmitting) return;
+
   const vorname  = document.getElementById('vorname').value.trim();
   const nachname = document.getElementById('nachname').value.trim();
   const kinder   = getKinder();
@@ -1344,36 +1365,56 @@ async function submitForm() {
   if (!selectedVisibility)     { showErr('Bitte wähle die Sichtbarkeit aus.'); return; }
   if (!consent)                { showErr('Bitte bestätige die Einwilligung.'); return; }
 
+  // Ab hier: Sperre setzen (alle Validierungen davor sind synchron, kein Race)
+  isSubmitting = true;
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Wird gespeichert …';
+
   const now = new Date();
   const ts  = now.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})
     + ', ' + now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
 
-  // Ein Eintrag pro Kind
-  let fehler = false;
-  for (const kind of kinder) {
-    const entry = {
-      ts, group: kind.group, vorname, nachname,
-      kind: kind.name, email, telefon, visibility: selectedVisibility
-    };
-    if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes('PASTE_YOUR')) {
-      try {
-        await submitToGoogleSheets(entry);
-      } catch(e) {
-        showErr('Fehler beim Speichern (' + kind.name + '): ' + e.message);
-        fehler = true; break;
-      }
-    }
-  }
-  if (fehler) return;
+  try {
+    // Ein Eintrag pro Kind
+    for (const kind of kinder) {
+      const key = entryKey(vorname, nachname, kind.name, telefon);
+      if (savedKeys.has(key)) continue;   // schon gespeichert (Retry oder doppelt eingegeben)
 
-  document.getElementById('form-container').style.display = 'none';
-  const kindNamen = kinder.map(k => k.name).join(', ');
-  document.getElementById('success-msg').textContent = selectedVisibility === 'public'
-    ? `🌈 ${kindNamen} wurde${kinder.length > 1 ? 'n' : ''} erfolgreich eingetragen und ${kinder.length > 1 ? 'sind' : 'ist'} jetzt sichtbar!`
-    : `🔒 Eingetragen – aber nicht öffentlich sichtbar.`;
-  document.getElementById('success-container').style.display = 'block';
-  launchKonfetti();
-  await loadPublicList(true);
+      const entry = {
+        ts, group: kind.group, vorname, nachname,
+        kind: kind.name, email, telefon, visibility: selectedVisibility
+      };
+      if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes('PASTE_YOUR')) {
+        try {
+          await submitToGoogleSheets(entry);
+        } catch(e) {
+          const done = kinder
+            .filter(k => savedKeys.has(entryKey(vorname, nachname, k.name, telefon)))
+            .map(k => k.name);
+          showErr('Fehler beim Speichern (' + kind.name + '): ' + e.message
+            + (done.length ? ' – Bereits gespeichert: ' + done.join(', ')
+               + '. Bitte erneut auf „Jetzt eintragen“ klicken, diese werden nicht doppelt angelegt.' : ''));
+          return;
+        }
+      }
+      savedKeys.add(key);
+    }
+
+    savedKeys.clear();
+    document.getElementById('form-container').style.display = 'none';
+    const kindNamen = kinder.map(k => k.name).join(', ');
+    document.getElementById('success-msg').textContent = selectedVisibility === 'public'
+      ? `🌈 ${kindNamen} wurde${kinder.length > 1 ? 'n' : ''} erfolgreich eingetragen und ${kinder.length > 1 ? 'sind' : 'ist'} jetzt sichtbar!`
+      : `🔒 Eingetragen – aber nicht öffentlich sichtbar.`;
+    document.getElementById('success-container').style.display = 'block';
+    launchKonfetti();
+    await loadPublicList(true);
+  } finally {
+    isSubmitting = false;
+    btn.disabled = false;
+    btn.textContent = '🌱 Jetzt eintragen';
+  }
 }
 
 async function submitToGoogleSheets(entry) {
