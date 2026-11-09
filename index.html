@@ -1200,7 +1200,7 @@ function renderGroupSettings() {
   el.innerHTML = Object.entries(groupConfig).map(([k,c]) => `
     <div class="group-setting-row">
       <button class="emoji-btn" onclick="openEmojiPicker('${k}')" title="Emoji ändern">${c.emoji}</button>
-      <input class="group-name-input form-input" id="gname-${k}" value="${esc(c.label)}" placeholder="Gruppenname" style="flex:1">
+      <input class="group-name-input form-input" id="gname-${k}" value="${esc(c.label)}" placeholder="Gruppenname" style="flex:1" onchange="saveGroupSettings()">
       <span style="font-size:var(--text-xs);color:var(--color-text-muted)">Gruppe ${k}</span>
     </div>`).join('');
 }
@@ -1239,10 +1239,20 @@ function closeEmojiPicker() {
 }
 function selectEmoji(emoji) {
   if (!pendingEmojiGroup) return;
+  // getippte, noch ungespeicherte Namen merken
+  const typed = {};
+  Object.keys(groupConfig).forEach(k => typed[k] = document.getElementById('gname-' + k)?.value);
+
   groupConfig[pendingEmojiGroup].emoji = emoji;
   localStorage.setItem('groupConfig', JSON.stringify(groupConfig));
   closeEmojiPicker();
   renderGroupSettings(); buildGroupSelects(); renderAdminStats(); renderAdminTable(); renderKontakte();
+
+  // Namen wieder einsetzen
+  Object.entries(typed).forEach(([k, v]) => {
+    const i = document.getElementById('gname-' + k);
+    if (i && v != null) i.value = v;
+  });
   showToast('Emoji gespeichert ✓');
 }
 
