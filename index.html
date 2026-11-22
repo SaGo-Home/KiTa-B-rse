@@ -334,6 +334,147 @@ img{display:block;max-width:100%;}
   .kind-row select{grid-column:1 / -1;}
   .pw-row{flex-direction:column;}
 }
+
+/* ══ DESIGN 2026: modern & kindlich ═════════════════════════════════════════ */
+:root,[data-theme="light"]{
+  --color-bg:#fff8ef;--color-surface:#ffffff;--color-surface-2:#fffaf4;
+  --color-surface-offset:#fdeede;--color-divider:#f3e6d3;--color-border:#ecdcc5;
+  --color-text:#2d2a4a;--color-text-muted:#6f6a8f;--color-text-faint:#b2abc9;
+  --color-text-inverse:#ffffff;
+  --color-primary:#ff7a59;--color-primary-hover:#ec6443;--color-primary-light:#ffe8df;--color-primary-dark:#d9573a;
+  --color-sun:#f5ac1c;--color-sun-hover:#e09a0c;--color-sun-light:#fff1cc;
+  --color-sky:#3d9be0;--color-sky-hover:#2c86c8;--color-sky-light:#e2f1ff;
+  --color-coral:#e5533a;--color-coral-hover:#cc4129;--color-coral-light:#ffe3dc;
+  --color-violet:#8a5cd6;--color-violet-hover:#7546c4;--color-violet-light:#f1e9ff;
+  --color-success:#2fa866;--color-success-light:#ddf6e8;
+  --g1:#7bd8a8;--g1-soft:#e3f8ec;--g1-ink:#1e6b45;
+  --g2:#ff9f7a;--g2-soft:#ffeadf;--g2-ink:#9a3a17;
+  --g3:#8cc8ff;--g3-soft:#e2f1ff;--g3-ink:#1c5a92;
+  --g4:#c7a6ff;--g4-soft:#f1e9ff;--g4-ink:#5a339c;
+  --shadow-sm:0 4px 0 rgba(45,42,74,.05),0 8px 24px rgba(45,42,74,.07);
+  --shadow-md:0 6px 0 rgba(45,42,74,.06),0 14px 34px rgba(45,42,74,.10);
+  --dots:#efe2cf;
+}
+[data-theme="dark"]{
+  --color-bg:#1d1b2e;--color-surface:#29263f;--color-surface-2:#302c48;
+  --color-surface-offset:#3a3656;--color-divider:#3a3656;--color-border:#4a4568;
+  --color-text:#f6f1ff;--color-text-muted:#b5afd3;--color-text-faint:#7d77a0;
+  --color-text-inverse:#ffffff;
+  --color-primary:#ff8a6b;--color-primary-hover:#ffa086;--color-primary-light:#4a2b26;--color-primary-dark:#c9573d;
+  --color-sun:#ffc94a;--color-sun-hover:#ffd774;--color-sun-light:#3d3218;
+  --color-sky:#8cc8ff;--color-sky-hover:#a9d6ff;--color-sky-light:#1d3349;
+  --color-coral:#ff8a70;--color-coral-hover:#ffa08b;--color-coral-light:#44261f;
+  --color-violet:#c7a6ff;--color-violet-hover:#d6bdff;--color-violet-light:#352a4f;
+  --color-success:#6fdca0;--color-success-light:#1f3b30;
+  --g1-soft:#1f3b30;--g1-ink:#9ff0c6;--g2-soft:#44291f;--g2-ink:#ffc2a8;
+  --g3-soft:#1d3349;--g3-ink:#b5dcff;--g4-soft:#352a4f;--g4-ink:#dccaff;
+  --shadow-sm:0 4px 0 rgba(0,0,0,.2),0 8px 24px rgba(0,0,0,.25);
+  --shadow-md:0 6px 0 rgba(0,0,0,.25),0 14px 34px rgba(0,0,0,.35);
+  --dots:#2a2741;
+}
+body{background-color:var(--color-bg);background-image:radial-gradient(var(--dots) 1.2px,transparent 1.2px);background-size:22px 22px;}
+
+/* Kopfzeile */
+.site-header{background:color-mix(in srgb,var(--color-bg) 86%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:0;box-shadow:none;}
+.logo-icon{transform:rotate(-6deg);border-radius:14px;box-shadow:0 4px 0 var(--color-primary-dark);}
+.btn-icon{border-radius:14px;background:var(--color-surface);}
+
+/* Begrüßung mit Luftballons */
+.hero-banner{background:none;border:0;height:auto;overflow:visible;padding:var(--space-2) var(--space-6) 0;}
+.hero-inner{position:relative;overflow:hidden;max-width:var(--content-wide);margin-inline:auto;min-height:210px;height:auto;
+  padding:var(--space-8) var(--space-8) var(--space-10);border-radius:32px;align-items:flex-start;
+  background:linear-gradient(135deg,#ffe7a3 0%,#ffd1c2 55%,#d9ecff 100%);color:#2d2a4a;}
+.hero-text-wrap{position:relative;z-index:2;max-width:560px;}
+.hero-text{font-family:var(--font-display);font-size:clamp(1.6rem,4vw,2.3rem);line-height:1.15;color:#2d2a4a;font-weight:700;}
+.hero-sub{margin-top:var(--space-2);font-weight:600;font-size:var(--text-base);color:#3d3960;max-width:460px;}
+.hero-sun-disc{position:absolute;right:28px;top:-18px;width:110px;height:110px;border-radius:50%;background:#ffc94a;box-shadow:0 0 0 14px rgba(255,201,74,.35);}
+.hero-cloud-a,.hero-cloud-b{position:absolute;background:#fff;border-radius:40px;opacity:.9;}
+.hero-cloud-a{width:120px;height:38px;right:120px;top:40px;}
+.hero-cloud-b{width:80px;height:28px;right:40px;top:110px;}
+.hero-sky{position:absolute;inset:0;z-index:1;pointer-events:none;}
+.rb{position:absolute;left:var(--x);bottom:0;opacity:.5;animation:balloonRise var(--t) linear infinite;animation-delay:var(--d);}
+.rb .sw{display:flex;flex-direction:column;align-items:center;transform:scale(var(--s));transform-origin:50% 0;animation:balloonSway 5s ease-in-out infinite;animation-delay:var(--d);}
+.rb .balloon{width:56px;height:66px;border-radius:50% 50% 48% 48%;display:grid;place-items:center;position:relative;background:var(--bc,#ccc);color:var(--bc,#ccc);
+  box-shadow:inset -7px -9px 0 rgba(0,0,0,.07),inset 7px 7px 0 rgba(255,255,255,.4);}
+.rb .balloon span{font-size:1.6rem;line-height:1;}
+.rb .balloon::after{content:"";position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);border:6px solid transparent;border-bottom-color:currentColor;border-top:0;}
+.rb.g1{--bc:var(--g1)}.rb.g2{--bc:var(--g2)}.rb.g3{--bc:var(--g3)}.rb.g4{--bc:var(--g4)}
+.rb .string{width:1.5px;height:44px;background:rgba(45,42,74,.4);margin-top:6px;}
+@keyframes balloonRise{from{transform:translateY(110px)}to{transform:translateY(calc(-100% - 250px))}}
+@keyframes balloonSway{0%,100%{transform:scale(var(--s)) translateX(-10px) rotate(-5deg)}50%{transform:scale(var(--s)) translateX(10px) rotate(5deg)}}
+@media(max-width:640px){
+  .hero-banner{padding:var(--space-2) var(--space-4) 0;}
+  .hero-inner{padding:var(--space-6) var(--space-5) var(--space-8);min-height:190px;}
+  .hero-sun-disc{width:80px;height:80px;right:14px;}
+  .hero-cloud-a{right:70px;width:90px;}
+  .rb:nth-child(even){display:none;}
+}
+@media (prefers-reduced-motion: reduce){.rb,.rb .sw{animation:none}.rb{bottom:12px}}
+
+/* Navigation als Tabs */
+.nav-wrap{background:none;border:0;}
+.nav-inner{padding:var(--space-5) var(--space-6) 0;}
+.nav-inner{gap:var(--space-2);}
+.nav-wrap .nav-inner{display:flex;}
+.nav-btn{background:var(--color-surface);border:2px solid var(--color-divider);border-radius:16px;padding:10px 18px;color:var(--color-text-muted);font-size:var(--text-sm);}
+.nav-btn:hover{color:var(--color-text);border-color:var(--color-border);}
+.nav-btn.active{background:var(--color-primary);color:#fff;border-color:var(--color-primary);box-shadow:0 4px 0 var(--color-primary-dark);}
+.nav-btn.active .nav-badge{background:rgba(255,255,255,.3);color:#fff;}
+@media(max-width:640px){.nav-inner{padding:var(--space-4) var(--space-4) 0;gap:6px;}.nav-btn{flex:1 1 auto;justify-content:center;padding:8px 7px;font-size:12px;gap:4px;border-radius:14px;}.nav-badge{padding:0 6px;}}
+
+/* Knöpfe */
+.btn{border-radius:16px;}
+.btn-primary{box-shadow:0 4px 0 var(--color-primary-dark);}
+.btn-primary:hover{transform:translateY(-1px);}
+.btn-primary:active{transform:translateY(3px);box-shadow:0 1px 0 var(--color-primary-dark);}
+.btn-secondary{border-radius:14px;}
+
+/* Suche und Gruppen-Filter */
+.search-input{border-radius:18px;height:50px;font-weight:600;}
+.chip{border-width:2px;padding:6px 14px;font-size:var(--text-sm);}
+.chip[data-group="1"]{background:var(--g1-soft);color:var(--g1-ink);border-color:transparent;}
+.chip[data-group="2"]{background:var(--g2-soft);color:var(--g2-ink);border-color:transparent;}
+.chip[data-group="3"]{background:var(--g3-soft);color:var(--g3-ink);border-color:transparent;}
+.chip[data-group="4"]{background:var(--g4-soft);color:var(--g4-ink);border-color:transparent;}
+.chip.active,.chip[data-group].active{background:var(--color-text);color:var(--color-bg);border-color:var(--color-text);}
+
+/* Kontaktkarten */
+.contact-card{position:relative;overflow:hidden;border-radius:22px;padding-top:calc(var(--space-5) + 6px);box-shadow:var(--shadow-sm);}
+.contact-card:hover{transform:translateY(-3px) rotate(-.3deg);}
+.card-ribbon{position:absolute;inset:0 0 auto 0;height:8px;background:var(--color-primary);}
+.contact-card.g1 .card-ribbon{background:var(--g1);}.contact-card.g2 .card-ribbon{background:var(--g2);}
+.contact-card.g3 .card-ribbon{background:var(--g3);}.contact-card.g4 .card-ribbon{background:var(--g4);}
+.avatar{border-radius:20px;transform:rotate(-5deg);box-shadow:none;background:var(--color-surface-offset);}
+.avatar[data-g="1"]{background:var(--g1-soft);}.avatar[data-g="2"]{background:var(--g2-soft);}
+.avatar[data-g="3"]{background:var(--g3-soft);}.avatar[data-g="4"]{background:var(--g4-soft);}
+.card-name{font-size:var(--text-lg);}
+.card-row{font-size:var(--text-sm);}
+.card-row a{color:var(--color-text);font-weight:700;}
+.group-tag{font-size:12px;padding:3px 12px;}
+.gtag-1{background:var(--g1-soft);color:var(--g1-ink);}.gtag-2{background:var(--g2-soft);color:var(--g2-ink);}
+.gtag-3{background:var(--g3-soft);color:var(--g3-ink);}.gtag-4{background:var(--g4-soft);color:var(--g4-ink);}
+
+/* Formular, Admin-Kästen, Dialoge */
+.form-card,.lock-card,.group-settings,.qr-section,.chart-section,.success-card{border-radius:28px;box-shadow:var(--shadow-sm);}
+.form-input,.form-select{border-radius:14px;}
+.radio-card{border-radius:20px;}
+.radio-card.selected-public{border-color:var(--color-success);background:var(--color-success-light);}
+.badge-pub{background:var(--color-success-light);color:var(--color-success);}
+.btn-add-kind{border-radius:16px;}
+.toast{border-radius:18px;}
+.toast-success{border-color:var(--color-success);color:var(--color-success);}
+.success-card{border-color:var(--color-success);}
+.success-title{color:var(--color-success);}
+.modal-box{border-radius:28px;}
+.modal-head h2{color:var(--color-text);}
+
+/* Emoji-Auswahl */
+.emoji-picker-box{max-width:400px;border-radius:24px;}
+.emoji-custom{margin-top:var(--space-3);padding:var(--space-3);border-radius:16px;background:var(--color-surface-2);border:2px dashed var(--color-border);}
+.emoji-grid{grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;}
+.emoji-cat{grid-column:1/-1;font-family:var(--font-display);font-weight:700;font-size:var(--text-xs);color:var(--color-text-muted);margin-top:var(--space-3);}
+.emoji-opt{font-size:26px;line-height:1;padding:6px 0;background:none;}
+.emoji-opt.current{border-color:var(--color-primary);background:var(--color-primary-light);}
 </style>
 </head>
 <body>
@@ -467,7 +608,18 @@ img{display:block;max-width:100%;}
 <!-- ── EMOJI PICKER ─────────────────────────────────────────────────────────── -->
 <div class="emoji-picker" id="emoji-picker" onclick="if(event.target===this)closeEmojiPicker()">
   <div class="emoji-picker-box">
-    <div style="font-family:var(--font-display);font-weight:700;font-size:var(--text-base)">Emoji wählen</div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-family:var(--font-display);font-weight:700;font-size:var(--text-base)">Emoji wählen</div>
+      <button class="modal-close" onclick="closeEmojiPicker()" aria-label="Schließen">&times;</button>
+    </div>
+    <div class="emoji-custom">
+      <label for="emoji-custom" style="font-size:var(--text-xs);font-weight:700;color:var(--color-text-muted)">Eigenes Emoji (z. B. über die Handy-Tastatur einfügen)</label>
+      <div style="display:flex;gap:var(--space-2);margin-top:4px">
+        <input id="emoji-custom" class="form-input" maxlength="16" placeholder="🦒" style="flex:1;font-size:1.4rem;padding:6px 12px" oninput="emojiCustomErr('')" onkeydown="if(event.key==='Enter')useCustomEmoji()">
+        <button class="btn btn-primary btn-sm" onclick="useCustomEmoji()">Übernehmen</button>
+      </div>
+      <div id="emoji-custom-err" class="pw-error"></div>
+    </div>
     <div class="emoji-grid" id="emoji-grid"></div>
   </div>
 </div>
@@ -480,8 +632,8 @@ img{display:block;max-width:100%;}
         <rect width="48" height="48" rx="12" fill="url(#lg)"/>
         <defs>
           <linearGradient id="lg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#22a85a"/>
-            <stop offset="100%" stop-color="#3dcf78"/>
+            <stop offset="0%" stop-color="#ff7a59"/>
+            <stop offset="100%" stop-color="#ffa25f"/>
           </linearGradient>
         </defs>
         <!-- Herz -->
@@ -506,19 +658,14 @@ img{display:block;max-width:100%;}
 <!-- ── HERO ────────────────────────────────────────────────────────────────── -->
 <div class="hero-banner">
   <div class="hero-inner">
+    <div class="hero-sun-disc" aria-hidden="true"></div>
+    <div class="hero-cloud-a" aria-hidden="true"></div>
+    <div class="hero-cloud-b" aria-hidden="true"></div>
+    <div class="hero-sky" id="hero-sky" aria-hidden="true"></div>
     <div class="hero-text-wrap">
-      <div class="hero-text">🌈 Herzlich willkommen!</div>
-      <div class="hero-sub">Vernetzt euch mit anderen KiTa-Familien</div>
+      <h2 class="hero-text">Hallo liebe KiTa-Familien! 🌈</h2>
+      <p class="hero-sub">Findet andere Kinder und Eltern aus eurer Gruppe – für Spielverabredungen und Geburtstage.</p>
     </div>
-    <div class="hero-kids">
-      <span class="kid">🧒</span>
-      <span class="kid">👧</span>
-      <span class="kid">🧒</span>
-      <span class="kid">👦</span>
-      <span class="kid">👧</span>
-    </div>
-    <span class="hero-sun">☀️</span>
-    <span class="hero-cloud">⛅</span>
   </div>
 </div>
 
@@ -799,16 +946,32 @@ let groupConfig = JSON.parse(localStorage.getItem('groupConfig') || 'null') || {
   '4': { label: 'Tiger',        emoji: '🐯', color: '#9b59b6' }
 };
 
-const EMOJI_LIST = [...new Set([
-  '🐭','🦋','🌈','🐯','🐻','🦊','🐸','🐧','🦁','🐮','🐷','🐼',
-  '🐹','🐰','🐨','🐵','🐔','🐥','🦆','🦉','🐝','🐞','🐢','🐙',
-  '🐠','🐳','🐬','🦄','🐴','🦓','🦒','🐘','🦔','🐶','🐱','🐺',
-  '🐊','🦕','🐉','🦀','🐌','🦜','🦢','🐑',
-  '🌟','⭐','🌙','☀️','🌺','🌸','🍀','🌻','🌷','🌼','🍄','🌳',
-  '🌲','🍎','🍓','🍒','🍉','🍋','🍭','🎈','🎠','🚀','🎯','🏠',
-  '🌍','🎨','🎵','🎮','🧩','🎪','🎁','🚂','🚜','🚒','⛵','🧸',
-  '🎀','🪁','⚽','🎲','🔔','💎','🔥','❄️'
-])];
+// Emoji-Auswahl im Admin, nach Themen gruppiert (zusätzlich ist jedes eigene Emoji möglich)
+const EMOJI_GROUPS = {
+  'Tiere': ['🐭','🐹','🐰','🐻','🐼','🐨','🦊','🐯','🦁','🐮','🐷','🐸','🐵','🐶','🐱','🐺','🦝','🐴','🦄','🦓','🦒','🐘','🦏','🦛','🐪','🦙','🦘','🦥','🦦','🦨','🦡','🦔','🐿️','🦫','🐑','🐐','🦌','🐇','🐁','🐻‍❄️'],
+  'Vögel': ['🐥','🐤','🐣','🐔','🐓','🦆','🦢','🦉','🦜','🦩','🦚','🐧','🦅','🕊️','🦤','🐦'],
+  'Wasser und Krabbeltiere': ['🐠','🐟','🐡','🐳','🐋','🐬','🦭','🐙','🦑','🦀','🦞','🦐','🐢','🐊','🐸','🐌','🐝','🐞','🦋','🐛','🐜','🦗','🪲','🪼','🐚'],
+  'Dinos und Fantasie': ['🦕','🦖','🐉','🐲','🧚','🧜','🧙','🦸','👑','🪄','🏰','🛸'],
+  'Pflanzen und Natur': ['🌸','🌺','🌻','🌷','🌼','🌹','🪻','💐','🍀','☘️','🌱','🌿','🌳','🌲','🌴','🌵','🍄','🍁','🍂','🌾','🪴','🪵'],
+  'Himmel und Wetter': ['☀️','🌤️','⛅','🌈','☁️','🌧️','⛈️','❄️','☃️','⛄','🌙','⭐','🌟','✨','💫','☄️','🌍','🪐','🔥','💧','🌊'],
+  'Obst und Leckeres': ['🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍒','🍑','🥝','🍍','🥕','🌽','🥦','🍪','🧁','🍰','🍩','🍭','🍬','🍦','🥨','🧇','🥞'],
+  'Fahrzeuge': ['🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚜','🚂','🚃','🚀','✈️','🚁','⛵','🚤','🚢','🛶','🚲','🛴','🛵','🏍️','🎈'],
+  'Spiel und Spaß': ['🧸','🪀','🪁','🎈','🎀','🎁','🎨','🖍️','✏️','📚','🧩','🎲','🎯','🎳','⚽','🏀','🏐','🎾','🛝','🎠','🎡','🎢','🎪','🎭','🎵','🎶','🥁','🎺','🎸','🪇','🎮','🏠','💎','🔔'],
+  'Formen und Herzen': ['❤️','🧡','💛','💚','🩵','💙','💜','🩷','🤎','🤍','💖','💝','🔴','🟠','🟡','🟢','🔵','🟣','🔶','🔷','🔺','⬛','⭐','💠']
+};
+const EMOJI_LIST = [...new Set(Object.values(EMOJI_GROUPS).flat())];
+
+// Prüft, ob ein Text genau EIN Emoji ist (für eigene Eingaben im Admin)
+function isSingleEmoji(s) {
+  s = String(s || '').trim();
+  if (!s || s.length > 16 || /[<>&"'`\\A-Za-z0-9]/.test(s)) return false;
+  if (!/\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(s)) return false;
+  if (window.Intl && Intl.Segmenter) {
+    const n = [...new Intl.Segmenter('de', { granularity: 'grapheme' }).segment(s)].length;
+    return n === 1;
+  }
+  return true;
+}
 
 const COUNTRY_CODES = [
   ['+49','🇩🇪'],['+43','🇦🇹'],['+41','🇨🇭'],['+33','🇫🇷'],['+39','🇮🇹'],
@@ -862,7 +1025,37 @@ function entryKey(vorname, nachname, kindName, telefon) {
 }
 
 // ── GRUPPEN DROPDOWN befüllen ─────────────────────────────────────────────
+// ── LUFTBALLONS IN DER KOPFZEILE (aus der Gruppen-Config) ─────────────────
+const BALLOON_SLOTS = [
+  { x: 4,  t: 16, d: -3,  s: 1    }, { x: 17, t: 25, d: -17, s: .8  },
+  { x: 30, t: 19, d: -8,  s: .9   }, { x: 43, t: 28, d: -22, s: 1.1 },
+  { x: 56, t: 22, d: -12, s: .75  }, { x: 68, t: 15, d: -6,  s: 1   },
+  { x: 80, t: 26, d: -4,  s: .85  }, { x: 91, t: 18, d: -14, s: .95 }
+];
+function renderBalloons() {
+  const sky = document.getElementById('hero-sky');
+  if (!sky) return;
+  const keys = Object.keys(groupConfig).sort((a, b) => Number(a) - Number(b));
+  if (!keys.length) return;
+  sky.textContent = '';
+  BALLOON_SLOTS.forEach((p, i) => {
+    const k = keys[i % keys.length];
+    const c = groupConfig[k] || {};
+    const rb = document.createElement('div');
+    rb.className = 'rb g' + k;
+    rb.style.cssText = `--x:${p.x}%;--t:${p.t}s;--d:${p.d}s;--s:${p.s}`;
+    if (!/^[1-4]$/.test(k)) rb.style.setProperty('--bc', c.color || '#ccc');
+    const sw = document.createElement('div'); sw.className = 'sw';
+    const b  = document.createElement('div'); b.className = 'balloon';
+    const em = document.createElement('span'); em.textContent = c.emoji || '🎈';
+    const st = document.createElement('div'); st.className = 'string';
+    b.appendChild(em); sw.appendChild(b); sw.appendChild(st); rb.appendChild(sw);
+    sky.appendChild(rb);
+  });
+}
+
 function buildGroupSelects() {
+  renderBalloons();
   const opts = Object.entries(groupConfig).map(([v,c]) =>
     `<option value="${v}">${c.emoji} ${c.label}</option>`).join('');
   // Admin-Filter
@@ -1003,7 +1196,8 @@ function renderKontakte() {
   }
   grid.innerHTML = filtered.map(r => {
     const gc = groupConfig[r.group] || { emoji:'👥', color:'#888', label:'Gruppe '+r.group };
-    return `<div class="contact-card">
+    return `<div class="contact-card g${esc(r.group)}">
+      <div class="card-ribbon"></div>
       <div class="card-top">
         <div class="avatar" data-g="${esc(r.group)}">${gc.emoji}</div>
         <div style="flex:1;min-width:0">
@@ -1347,10 +1541,32 @@ async function saveGroupSettings() {
 function openEmojiPicker(groupKey) {
   pendingEmojiGroup = groupKey;
   const grid = document.getElementById('emoji-grid');
-  grid.innerHTML = EMOJI_LIST.map(e =>
-    `<div class="emoji-opt" onclick="selectEmoji('${e}')">${e}</div>`).join('');
+  const cur = (groupConfig[groupKey] || {}).emoji;
+  grid.innerHTML = Object.entries(EMOJI_GROUPS).map(([title, list]) =>
+    `<div class="emoji-cat">${esc(title)}</div>` +
+    [...new Set(list)].map(e =>
+      `<button type="button" class="emoji-opt${e === cur ? ' current' : ''}" data-e="${e}">${e}</button>`).join('')
+  ).join('');
+  const inp = document.getElementById('emoji-custom');
+  if (inp) inp.value = '';
+  emojiCustomErr('');
   document.getElementById('emoji-picker').classList.add('open');
 }
+function emojiCustomErr(msg) {
+  const el = document.getElementById('emoji-custom-err');
+  if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
+}
+function useCustomEmoji() {
+  const val = (document.getElementById('emoji-custom')?.value || '').trim();
+  if (!isSingleEmoji(val)) { emojiCustomErr('Bitte genau ein Emoji eingeben (keine Buchstaben oder Zahlen).'); return; }
+  selectEmoji(val);
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('emoji-grid')?.addEventListener('click', e => {
+    const b = e.target.closest('.emoji-opt');
+    if (b && b.dataset.e) selectEmoji(b.dataset.e);
+  });
+});
 function closeEmojiPicker() {
   document.getElementById('emoji-picker').classList.remove('open');
   pendingEmojiGroup = null;
