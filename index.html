@@ -775,6 +775,7 @@ img{display:block;max-width:100%;}
 // ── CONFIG ────────────────────────────────────────────────────────────────
 // Admin-Passwort liegt NICHT mehr hier, sondern im Apps Script (Skripteigenschaft ADMIN_PW)
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby85tUImKvNYabmlyLyvJkQzwO8OUAqKsEObWtgUb0ypQ8aie6HlDkeE6gh8oR9E9Wu/exec';
+const SITE_URL        = 'https://sago-home.github.io/KiTa-B-rse/';   // Vorbelegung für den QR-Code
 
 // ── STATE ─────────────────────────────────────────────────────────────────
 let adminUnlocked      = false;
@@ -1290,6 +1291,16 @@ async function loadGroupConfig() {
     const res  = await fetch(APPS_SCRIPT_URL + '?action=config&_t=' + Date.now());
     const json = await res.json();
     if (json.result !== 'success') return;
+
+    // Lösch-E-Mail (zentral im Sheet, für alle Eltern). Nur übernehmen, wenn sie dort schon
+    // einmal gespeichert wurde – sonst bleibt eine lokal vorhandene Adresse erhalten.
+    if (json.settings && json.settings.saved && typeof json.settings.deleteEmail === 'string') {
+      deleteEmail = json.settings.deleteEmail;
+      localStorage.setItem('deleteEmail', deleteEmail);
+      renderKontakte();
+      if (adminUnlocked) loadDeleteEmailInput();
+    }
+
     const cfg = normalizeGroupConfig(json.data);
     if (!cfg) return;   // noch nichts im Sheet gespeichert → lokal/Default behalten
     const typed = captureTypedGroupNames();
@@ -1442,7 +1453,7 @@ function renderQR() {
   ctx.strokeRect(2,2,136,136);
   const saved = localStorage.getItem('qrUrl') || '';
   const inp = document.getElementById('qr-url-input');
-  if (inp && saved) inp.value = saved;
+  if (inp && !inp.value) inp.value = saved || SITE_URL;
 }
 
 function downloadQR() {
@@ -1638,12 +1649,20 @@ async function runRollover(plan) {
 }
 
 // ── LÖSCH-E-MAIL ──────────────────────────────────────────────────────────
-function saveDeleteEmail() {
-  const val = document.getElementById('delete-email-input')?.value.trim();
-  if (!val || !val.includes('@')) { showToast('Bitte gültige E-Mail eingeben', 'error'); return; }
-  deleteEmail = val;
-  localStorage.setItem('deleteEmail', val);
-  showToast('E-Mail gespeichert ✓');
+async function saveDeleteEmail() {
+  const val = document.getElementById('delete-email-input')?.value.trim() || '';
+  if (val && !/^[^\s@<>"'&?]+@[^\s@<>"'&?]+\.[^\s@<>"'&?]+$/.test(val)) {
+    showToast('Bitte gültige E-Mail eingeben', 'error'); return;
+  }
+  try {
+    const json = await adminPost({ action:'setSettings', deleteEmail: val });
+    if (json.result !== 'success') throw new Error(json.message || 'Fehler');
+    deleteEmail = val;
+    localStorage.setItem('deleteEmail', val);
+    showToast(val ? 'E-Mail für alle gespeichert ✓' : 'E-Mail entfernt ✓');
+  } catch(e) {
+    showToast('Nicht gespeichert: ' + e.message, 'error');
+  }
   renderKontakte();
 }
 function loadDeleteEmailInput() {
