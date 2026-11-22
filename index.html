@@ -450,7 +450,7 @@ img{display:block;max-width:100%;}
       <div class="roll-map" id="roll-map"></div>
       <div class="form-section">Neue Gruppennamen und Emojis</div>
       <div id="roll-names"></div>
-      <div class="roll-note">⚠️ Gruppennamen und Emojis werden nur in <strong>diesem Browser</strong> gespeichert. Andere Eltern sehen weiter die alten Namen, bis das geändert wird.</div>
+      <div class="roll-note">ℹ️ Gruppennamen und Emojis werden für <strong>alle Eltern</strong> gespeichert.</div>
       <label class="roll-opt"><input type="checkbox" id="roll-confirm"><span>Ich weiß, dass die Einträge der letzten Gruppe dauerhaft gelöscht werden und das nicht rückgängig zu machen ist. Eine CSV-Sicherung wird vorher automatisch heruntergeladen.</span></label>
     </div>
     <div id="roll-progress" style="display:none">
@@ -773,11 +773,12 @@ img{display:block;max-width:100%;}
 
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────
-const ADMIN_PW        = 'KiTa26';
+// Admin-Passwort liegt NICHT mehr hier, sondern im Apps Script (Skripteigenschaft ADMIN_PW)
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby85tUImKvNYabmlyLyvJkQzwO8OUAqKsEObWtgUb0ypQ8aie6HlDkeE6gh8oR9E9Wu/exec';
 
 // ── STATE ─────────────────────────────────────────────────────────────────
 let adminUnlocked      = false;
+let adminToken         = null;        // vom Script beim Login vergeben, nur im Speicher
 let registrations      = [];
 let sheetsLoaded       = false;
 let sheetsLoadError    = null;
@@ -1094,15 +1095,56 @@ function logCall() {
 }
 
 // ── ADMIN LOGIN ───────────────────────────────────────────────────────────
-function checkPw() {
-  const v = document.getElementById('pw-input').value;
-  if (v === ADMIN_PW) {
+function postForm(params) {
+  return fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' },
+    body: new URLSearchParams(params).toString()
+  }).then(r => r.json());
+}
+
+// Admin-Aufruf mit Token. Bei abgelaufenem/ungültigem Login → Admin wieder sperren.
+async function adminPost(params) {
+  const json = await postForm({ ...params, token: adminToken || '' });
+  if (json.auth === false) {
+    lockAdmin(json.message || 'Bitte erneut anmelden');
+    throw new Error(json.message || 'Nicht angemeldet');
+  }
+  return json;
+}
+
+function lockAdmin(msg) {
+  adminUnlocked = false;
+  adminToken = null;
+  document.getElementById('admin-panel').style.display = 'none';
+  document.getElementById('admin-lock').style.display  = 'flex';
+  const err = document.getElementById('pw-error');
+  if (msg) { err.textContent = msg; err.style.display = 'block'; }
+}
+
+let loginRunning = false;
+async function checkPw() {
+  if (loginRunning) return;
+  const inp = document.getElementById('pw-input');
+  const err = document.getElementById('pw-error');
+  if (!inp.value) return;
+  if (!backendConfigured()) { err.textContent = 'Kein Backend konfiguriert'; err.style.display = 'block'; return; }
+  loginRunning = true;
+  err.style.display = 'none';
+  try {
+    const json = await postForm({ action:'login', password: inp.value });
+    if (json.result !== 'success' || !json.token) throw new Error(json.message || 'Anmeldung fehlgeschlagen');
+    adminToken = json.token;
     adminUnlocked = true;
+    inp.value = '';
     document.getElementById('admin-lock').style.display  = 'none';
     document.getElementById('admin-panel').style.display = 'block';
     loadAllForAdmin();
-  } else {
-    document.getElementById('pw-error').style.display = 'block';
+  } catch(e) {
+    err.textContent = e.message || 'Anmeldung fehlgeschlagen';
+    err.style.display = 'block';
+  } finally {
+    loginRunning = false;
   }
 }
 
@@ -1114,9 +1156,7 @@ async function loadAllForAdmin() {
   }
   logCall();
   try {
-    const url = APPS_SCRIPT_URL + '?action=all&_t=' + Date.now();
-    const res  = await fetch(url);
-    const json = await res.json();
+    const json = await adminPost({ action:'all' });
     if (json.result !== 'success') throw new Error(json.message);
     registrations = json.data.map(r => ({
       id: r.id, rowIndex: r.id, ts: r.ts || '', group: String(r.group),
@@ -1205,23 +1245,90 @@ function renderGroupSettings() {
     </div>`).join('');
 }
 
-function saveGroupSettings() {
-  let changed = false;
+// ── GRUPPEN-CONFIG ZENTRAL (Sheet-Blatt "config") ─────────────────────────
+function backendConfigured() {
+  return APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes('PASTE_YOUR');
+}
+
+// Prüft eine Config vom Server; gibt eine bereinigte Kopie zurück oder null.
+// Farben fehlen ggf. → vorhandene lokale Farbe bzw. #888 übernehmen.
+function normalizeGroupConfig(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
+  const keys = Object.keys(obj);
+  if (!keys.length) return null;
+  const out = {};
+  for (const k of keys) {
+    const v = obj[k];
+    if (!v || typeof v !== 'object') return null;
+    const label = String(v.label || '').trim();
+    const emoji = String(v.emoji || '').trim();
+    if (!label || !emoji) return null;
+    out[k] = { label, emoji, color: v.color || (groupConfig[k] || {}).color || '#888' };
+  }
+  return out;
+}
+
+// Getippte, noch nicht gespeicherte Namen aus den Admin-Feldern merken
+function captureTypedGroupNames() {
+  const typed = {};
+  Object.keys(groupConfig).forEach(k => {
+    const i = document.getElementById('gname-' + k);
+    if (i && i.value.trim() && i.value.trim() !== groupConfig[k].label) typed[k] = i.value;
+  });
+  return typed;
+}
+function restoreTypedGroupNames(typed) {
+  Object.entries(typed).forEach(([k, v]) => {
+    const i = document.getElementById('gname-' + k);
+    if (i) i.value = v;
+  });
+}
+
+async function loadGroupConfig() {
+  if (!backendConfigured()) return;
+  try {
+    const res  = await fetch(APPS_SCRIPT_URL + '?action=config&_t=' + Date.now());
+    const json = await res.json();
+    if (json.result !== 'success') return;
+    const cfg = normalizeGroupConfig(json.data);
+    if (!cfg) return;   // noch nichts im Sheet gespeichert → lokal/Default behalten
+    const typed = captureTypedGroupNames();
+    groupConfig = cfg;
+    localStorage.setItem('groupConfig', JSON.stringify(groupConfig));
+    buildGroupSelects(); renderKontakte();
+    if (adminUnlocked) {
+      renderGroupSettings(); restoreTypedGroupNames(typed);
+      renderAdminStats(); renderAdminTable();
+    }
+  } catch(e) { /* still ignorieren: Fallback lokal bzw. Default */ }
+}
+
+// Aufrufe hintereinander ausführen, damit am Ende sicher der neueste Stand im Sheet steht
+let groupConfigPush = Promise.resolve();
+function pushGroupConfig() {
+  const run = async () => {
+    if (!backendConfigured()) throw new Error('Kein Backend konfiguriert');
+    const json = await adminPost({ action:'setConfig', config: JSON.stringify(groupConfig) });
+    if (json.result !== 'success') throw new Error(json.message || 'Fehler');
+  };
+  const p = groupConfigPush.then(run, run);
+  groupConfigPush = p.catch(() => {});
+  return p;
+}
+
+async function saveGroupSettings() {
+  // Immer alle Namen übernehmen (auch ohne Änderung), damit die Config hochgeladen wird
   Object.keys(groupConfig).forEach(k => {
     const inp = document.getElementById('gname-' + k);
-    if (inp && inp.value.trim() && inp.value.trim() !== groupConfig[k].label) {
-      const oldLabel = groupConfig[k].label;
-      groupConfig[k].label = inp.value.trim();
-      changed = true;
-      showToast(`Gruppe ${k}: "${oldLabel}" → "${groupConfig[k].label}"`, 'info');
-    }
+    if (inp && inp.value.trim()) groupConfig[k].label = inp.value.trim();
   });
-  if (changed) {
-    localStorage.setItem('groupConfig', JSON.stringify(groupConfig));
-    buildGroupSelects(); renderAdminStats(); renderAdminTable(); renderKontakte();
-    showToast('Gruppeneinstellungen gespeichert ✓');
-  } else {
-    showToast('Keine Änderungen', 'info');
+  localStorage.setItem('groupConfig', JSON.stringify(groupConfig));
+  buildGroupSelects(); renderAdminStats(); renderAdminTable(); renderKontakte();
+  try {
+    await pushGroupConfig();
+    showToast('Gruppen für alle gespeichert ✓');
+  } catch(e) {
+    showToast('Nur lokal gespeichert: ' + e.message, 'error');
   }
 }
 
@@ -1237,7 +1344,7 @@ function closeEmojiPicker() {
   document.getElementById('emoji-picker').classList.remove('open');
   pendingEmojiGroup = null;
 }
-function selectEmoji(emoji) {
+async function selectEmoji(emoji) {
   if (!pendingEmojiGroup) return;
   // getippte, noch ungespeicherte Namen merken
   const typed = {};
@@ -1253,7 +1360,13 @@ function selectEmoji(emoji) {
     const i = document.getElementById('gname-' + k);
     if (i && v != null) i.value = v;
   });
-  showToast('Emoji gespeichert ✓');
+  // Nur das Emoji hochladen; getippte Namen erst beim Speichern der Namen
+  try {
+    await pushGroupConfig();
+    showToast('Emoji für alle gespeichert ✓');
+  } catch(e) {
+    showToast('Emoji nur lokal gespeichert: ' + e.message, 'error');
+  }
 }
 
 // ── QR-CODE ───────────────────────────────────────────────────────────────
@@ -1347,8 +1460,7 @@ let rolloverRunning = false;
 function groupKeysSorted() { return Object.keys(groupConfig).map(Number).sort((a,b) => a-b); }
 
 async function fetchAllRegs() {
-  const res  = await fetch(APPS_SCRIPT_URL + '?action=all&_t=' + Date.now());
-  const json = await res.json();
+  const json = await adminPost({ action:'all' });
   if (json.result !== 'success') throw new Error(json.message || 'Fehler beim Laden');
   return json.data.map(r => ({
     id: Number(r.id), ts: r.ts || '', group: String(r.group),
@@ -1467,11 +1579,7 @@ async function runRollover(plan) {
   rolloverRunning = true;
   document.getElementById('roll-x').disabled = true;
   document.getElementById('roll-cancel').disabled = true;
-  const post = body => fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' },
-    body: new URLSearchParams(body).toString()
-  }).then(r => r.json());
+  const post = body => adminPost(body);
 
   let current = null;   // frisch geladene Zeilen, zur Prüfung vor dem Löschen
   try {
@@ -1508,11 +1616,16 @@ async function runRollover(plan) {
     return;
   }
 
-  // Namen/Emojis übernehmen (nur lokal gespeichert!)
+  // Namen/Emojis übernehmen, lokal speichern und für alle hochladen
   Object.entries(plan.names).forEach(([k, n]) => {
     if (groupConfig[k]) { groupConfig[k].label = n.label; groupConfig[k].emoji = n.emoji; }
   });
   localStorage.setItem('groupConfig', JSON.stringify(groupConfig));
+  try {
+    await pushGroupConfig();
+  } catch(e) {
+    showToast('Gruppennamen nur lokal gespeichert: ' + e.message + ' – bitte im Admin erneut speichern', 'error');
+  }
   localStorage.removeItem(ROLL_KEY);
   rolloverRunning = false;
   document.getElementById('roll-x').disabled = false;
@@ -1708,13 +1821,7 @@ async function deleteEntry(id) {
 
   if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes('PASTE_YOUR')) {
     try {
-      const body = new URLSearchParams({ action:'delete', rowIndex: String(r.rowIndex || r.id) }).toString();
-      const res  = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' },
-        body
-      });
-      const json = await res.json();
+      const json = await adminPost({ action:'delete', rowIndex: String(r.rowIndex || r.id) });
       if (json.result !== 'success') throw new Error(json.message || 'Fehler');
     } catch(e) {
       showToast('Fehler beim Löschen: ' + e.message, 'error'); return;
@@ -1781,13 +1888,7 @@ async function saveEdit() {
 
   if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes('PASTE_YOUR')) {
     try {
-      const body = new URLSearchParams({ action:'update', rowIndex, group, vorname, nachname, kind, email, telefon, visibility }).toString();
-      const res  = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' },
-        body
-      });
-      const json = await res.json();
+      const json = await adminPost({ action:'update', rowIndex, group, vorname, nachname, kind, email, telefon, visibility });
       if (json.result !== 'success') throw new Error(json.message || 'Fehler');
     } catch(e) {
       showEditErr('Fehler beim Speichern: ' + e.message); return;
@@ -1862,6 +1963,7 @@ document.addEventListener('DOMContentLoaded', () => {
   buildCountrySelects();
   buildGroupSelects();
   addKindRow(); // Erstes Kind-Feld vorbelegen
+  loadGroupConfig();
   loadPublicList();
   // Gelöschte E-Mail laden
   loadDeleteEmailInput();
